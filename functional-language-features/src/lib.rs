@@ -4,6 +4,7 @@ struct Shoe {
     style: String,
 }
 
+#[warn(dead_code)]
 fn shoes_in_size(shoes: Vec<Shoe>, shoe_size: u32) -> Vec<Shoe> {
     shoes.into_iter().filter(|s| s.size == shoe_size).collect()
 }
@@ -13,6 +14,7 @@ struct Counter {
 }
 
 impl Counter {
+    #[warn(dead_code)]
     fn new() -> Counter {
         Counter { count: 0 }
     }
@@ -31,6 +33,7 @@ impl Iterator for Counter {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
