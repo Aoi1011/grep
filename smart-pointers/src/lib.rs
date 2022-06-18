@@ -1,5 +1,6 @@
 use crate::List::{Cons, Nil};
 use std::ops::Deref;
+use std::rc::Rc;
 
 fn r#box() {
     let b = Box::new(5);
@@ -9,7 +10,7 @@ fn r#box() {
 // Rust can't figure out how much space to allocate for recursively defined types, so the compiler gives
 // the error
 enum List {
-    Cons(i32, Box<List>),
+    Cons(i32, Rc<List>),
     Nil,
 }
 
@@ -45,6 +46,9 @@ impl Drop for CustomSmartPointer {
     }
 }
 
+// reference counting
+// to enable multiple ownership
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -59,7 +63,7 @@ mod tests {
     fn list_works() {
         // let list = Cons(1, Box::new(Cons(2, Box::new(Cons(3, Box::new(Nil)));
 
-        let list = Cons(1, Box::new(Cons(2, Box::new(Cons(3, Box::new(Nil))))));
+        // let list = Cons(1, Box::new(Cons(2, Box::new(Cons(3, Box::new(Nil))))));
     }
 
     #[test]
@@ -98,6 +102,21 @@ mod tests {
         println!("CustomSmartPointer created.");
         drop(c);
         println!("CustomSmartPointer dropped before the end of main.");
+    }
+
+    #[test]
+    fn test_reference_counting() {
+        let a = Rc::new(Cons(5, Rc::new(Cons(10, Rc::new(Nil)))));
+        println!("count after creating a = {}, ", Rc::strong_count(&a));
+        let b = Cons(3, Rc::clone(&a));
+        println!("count after creating b = {}", Rc::strong_count(&a));
+        {
+            let c = Cons(4, Rc::clone(&a));
+            println!("count after creating c = {}", Rc::strong_count(&a));
+        }
+        // let c = Cons(4, Rc::clone(&a));
+
+        println!("count after c goes out of scope = {}", Rc::strong_count(&a));
     }
 }
 
