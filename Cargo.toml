@@ -14,5 +14,6 @@ members = [
   "object-oriented",
   "patterns-matching",
   "advanced-features",
+  "single-threaded",
 ]
 
