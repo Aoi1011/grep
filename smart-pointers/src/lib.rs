@@ -1,6 +1,7 @@
 use crate::List::{Cons, Nil};
+use std::cell::RefCell;
 use std::ops::Deref;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 fn r#box() {
     let b = Box::new(5);
@@ -9,9 +10,32 @@ fn r#box() {
 
 // Rust can't figure out how much space to allocate for recursively defined types, so the compiler gives
 // the error
+// #[derive(Debug)]
+// enum List {
+//     Cons(Rc<RefCell<i32>>, Rc<List>),
+//     Nil,
+// }
+
+#[derive(Debug)]
 enum List {
-    Cons(i32, Rc<List>),
+    Cons(i32, RefCell<Rc<List>>),
     Nil,
+}
+
+#[derive(Debug)]
+struct Node {
+    value: i32,
+    parent: RefCell<Weak<Node>>,
+    children: RefCell<Vec<Rc<Node>>>,
+}
+
+impl List {
+    fn tail(&self) -> Option<&RefCell<Rc<List>>> {
+        match self {
+            Cons(_, item) => Some(item),
+            Nil => None,
+        }
+    }
 }
 
 enum Message {
@@ -143,36 +167,36 @@ mod tests {
         println!("CustomSmartPointer dropped before the end of main.");
     }
 
-    #[test]
-    fn test_reference_counting() {
-        let a = Rc::new(Cons(5, Rc::new(Cons(10, Rc::new(Nil)))));
-        println!("count after creating a = {}, ", Rc::strong_count(&a));
-        let b = Cons(3, Rc::clone(&a));
-        println!("count after creating b = {}", Rc::strong_count(&a));
-        {
-            let c = Cons(4, Rc::clone(&a));
-            println!("count after creating c = {}", Rc::strong_count(&a));
-        }
-        // let c = Cons(4, Rc::clone(&a));
+    // #[test]
+    // fn test_reference_counting() {
+    //     let a = Rc::new(Cons(5, Rc::new(Cons(10, Rc::new(Nil)))));
+    //     println!("count after creating a = {}, ", Rc::strong_count(&a));
+    //     let b = Cons(3, Rc::clone(&a));
+    //     println!("count after creating b = {}", Rc::strong_count(&a));
+    //     {
+    //         let c = Cons(4, Rc::clone(&a));
+    //         println!("count after creating c = {}", Rc::strong_count(&a));
+    //     }
+    //     // let c = Cons(4, Rc::clone(&a));
 
-        println!("count after c goes out of scope = {}", Rc::strong_count(&a));
-    }
+    //     println!("count after c goes out of scope = {}", Rc::strong_count(&a));
+    // }
 
     struct MockMessenger {
-        sent_messages: Vec<String>,
+        sent_messages: RefCell<Vec<String>>,
     }
 
     impl MockMessenger {
         fn new() -> MockMessenger {
             MockMessenger {
-                sent_messages: vec![],
+                sent_messages: RefCell::new(vec![]),
             }
         }
     }
 
     impl Messenger for MockMessenger {
         fn send(&self, message: &str) {
-            self.sent_messages.push(String::from(message));
+            self.sent_messages.borrow_mut().push(String::from(message));
         }
     }
 
@@ -183,7 +207,122 @@ mod tests {
 
         limit_tracker.set_value(80);
 
-        assert_eq!(mock_messenger.sent_messages.len(), 1);
+        assert_eq!(mock_messenger.sent_messages.borrow().len(), 1);
+    }
+
+    #[test]
+    fn test_refcell() {
+        // let value = Rc::new(RefCell::new(5));
+
+        // let a = Rc::new(Cons(Rc::clone(&value), Rc::new(Nil)));
+
+        // let b = Cons(Rc::new(RefCell::new(3)), Rc::clone(&a));
+        // let c = Cons(Rc::new(RefCell::new(4)), Rc::clone(&a));
+
+        // *value.borrow_mut() += 10;
+
+        // println!("a after = {:?}", a);
+        // println!("b after = {:?}", b);
+        // println!("c after = {:?}", c);
+    }
+
+    #[test]
+    fn test_refcell2() {
+        let a = Rc::new(Cons(5, RefCell::new(Rc::new(Nil))));
+
+        println!("a initial rc count = {}", Rc::strong_count(&a));
+        println!("a next item = {:?}", a.tail());
+
+        let b = Rc::new(Cons(10, RefCell::new(Rc::clone(&a))));
+
+        println!("a rc count after b creation = {}", Rc::strong_count(&a));
+        println!("b initial rc count = {}", Rc::strong_count(&b));
+        println!("b next item = {:?}", b.tail());
+
+        if let Some(link) = a.tail() {
+            *link.borrow_mut() = Rc::clone(&b);
+        }
+
+        println!("b rc count after changing a = {}", Rc::strong_count(&b));
+        println!("a rc count after changing a = {}", Rc::strong_count(&a));
+    }
+
+    #[test]
+    fn test_tree_data_structure() {
+        // let leaf = Rc::new(Node {
+        //     value: 3,
+        //     children: RefCell::new(vec![]),
+        // });
+
+        // let branch = Rc::new(Node {
+        //     value: 5,
+        //     children: RefCell::new(vec![Rc::clone(&leaf)]),
+        // });
+    }
+
+    #[test]
+    fn test_tree_data_structure_2() {
+        let leaf = Rc::new(Node {
+            value: 3,
+            parent: RefCell::new(Weak::new()),
+            children: RefCell::new(vec![]),
+        });
+
+        println!("leaf parent = {:?}", leaf.parent.borrow().upgrade());
+
+        let branch = Rc::new(Node {
+            value: 5,
+            parent: RefCell::new(Weak::new()),
+            children: RefCell::new(vec![Rc::clone(&leaf)]),
+        });
+
+        *leaf.parent.borrow_mut() = Rc::downgrade(&branch);
+
+        println!("leaf parent = {:?}", leaf.parent.borrow().upgrade());
+    }
+
+    #[test]
+    fn test_tree_data_structure_3() {
+        let leaf = Rc::new(Node {
+            value: 3,
+            parent: RefCell::new(Weak::new()),
+            children: RefCell::new(vec![]),
+        });
+
+        println!(
+            "leaf strong = {}, weak = {}",
+            Rc::strong_count(&leaf),
+            Rc::weak_count(&leaf)
+        );
+
+        {
+            let branch = Rc::new(Node {
+                value: 5,
+                parent: RefCell::new(Weak::new()),
+                children: RefCell::new(vec![Rc::clone(&leaf)]),
+            });
+
+            *leaf.parent.borrow_mut() = Rc::downgrade(&branch);
+
+            println!(
+                "branch strong = {}, weak = {}",
+                Rc::strong_count(&branch),
+                Rc::weak_count(&branch)
+            );
+
+            println!(
+                "leaf strong = {}, weak = {}",
+                Rc::strong_count(&leaf),
+                Rc::weak_count(&leaf)
+            );
+        }
+
+        println!("leaf parent = {:?}", leaf.parent.borrow().upgrade());
+        println!(
+            "leaf strong = {}, weak = {}",
+            Rc::strong_count(&leaf),
+            Rc::weak_count(&leaf)
+        );
     }
 }
 
