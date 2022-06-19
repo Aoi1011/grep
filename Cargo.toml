@@ -11,5 +11,6 @@ members = [
   "adder",
   "smart-pointers",
   "fearless-concurrency",
+  "object-oriented",
 ]
 
