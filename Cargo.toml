@@ -13,5 +13,6 @@ members = [
   "fearless-concurrency",
   "object-oriented",
   "patterns-matching",
+  "advanced-features",
 ]
 
