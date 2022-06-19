@@ -12,5 +12,6 @@ members = [
   "smart-pointers",
   "fearless-concurrency",
   "object-oriented",
+  "patterns-matching",
 ]
 
